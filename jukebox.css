@@ -1,0 +1,229 @@
+
+.no_select
+{
+	/* pointer-events: none; */
+	
+	-webkit-touch-callout: none;
+	-webkit-user-select: none;
+	-khtml-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+}
+
+.pl_song_item
+{
+	cursor: default;
+}
+
+.song_drop
+{
+	font-family: Arial;
+	font-weight: bold;
+	margin: 2px;
+	padding: 13px 8px;
+	font-size: 30px;
+	color: rgba(20, 20, 20, 0.45);	
+	display: inline-block;
+	vertical-align: top;
+	text-align:center;
+	width: 80px;
+	height: 70px;
+	border-radius: 5px;
+}
+
+.play_ord_btn
+{
+	margin: 0px 4px;
+	opacity: 0.35;
+	cursor: pointer;
+}
+
+
+.plsi
+{
+	cursor: pointer;
+}
+
+html {
+	height: 100%;
+	width: 100%;
+	background:linear-gradient(to bottom, #191919 0%, #111111 100%);
+}
+
+
+
+.button {
+	box-shadow: 0px 5px 6px -7px #276873;
+	background:linear-gradient(to bottom, #599bb3 5%, #408c99 100%);
+	background-color:#599bb3;
+	border-radius:8px;
+	display:inline-block;
+	text-align: center;
+	cursor:pointer;
+	color:#191919;
+	font-family:Arial;
+	font-size:20px;
+	font-weight:bold;
+	padding:7px 5px;
+	text-decoration:none;
+	text-shadow:0px 1px 0px #3d768a;
+}
+.button:hover {
+	background:linear-gradient(to bottom, #408c99 5%, #599bb3 100%);
+	background-color:#408c99;
+}
+.button:active {
+	position:relative;
+	top:1px;
+}
+
+.button_dis, .button_dis:hover {
+	background: #888888 !important;
+}
+
+.nextb {
+	background:linear-gradient(to bottom, #ffc477 5%, #fb9e25 100%);
+	text-shadow:0px 1px 0px #cc9f52;
+}
+.nextb:hover {
+	background:linear-gradient(to bottom, #fb9e25 5%, #ffc477 100%);
+}
+
+.backb {
+	background:linear-gradient(to bottom, #d0451b 5%, #bc3315 100%);
+	text-shadow:0px 1px 0px #854629;
+}
+.backb:hover {
+	background:linear-gradient(to bottom, #bc3315 5%, #d0451b 100%);
+}
+
+.reloadb {	
+	font-size:9px;
+	font-weight:normal;
+	text-shadow:0px 0px 0px #cc9f52;
+	width:30px;	
+	border-radius:4px;
+	padding:2px 2px;
+}
+
+
+
+.songTitle {
+	font-family: Tahoma, Geneva, sans-serif;
+	font-size: 26px;
+	/* letter-spacing: 0.6px; */
+	/* word-spacing: 0px; */
+	color: #eeeecc;
+	font-weight: 400;
+	text-decoration: none;
+	font-style: normal;
+	font-variant: normal;
+	text-transform: none;
+}
+
+.songArtist {
+	font-family: Tahoma, Geneva, sans-serif;
+	font-size: 24px;
+	/* letter-spacing: 0.6px; */
+	/* word-spacing: 0px; */
+	color: #eeeecc;
+	font-weight: 400;
+	text-decoration: none;
+	font-style: normal;
+	font-variant: normal;
+	text-transform: none;
+}
+
+.songYear {
+  color: #bbb3a7;
+  font-size: 13px;
+  position: relative;
+  top: -1px;
+  left: 4px;
+}
+
+
+.songInfo {
+	font-family: Tahoma, Geneva, sans-serif;
+	font-size: 12px;
+	/* letter-spacing: 0.6px; */
+	/* word-spacing: 0px; */
+	color: #ccccaa;
+	font-weight: 200;
+	text-decoration: none;
+	font-style: normal;
+	font-variant: normal;
+	text-transform: none;
+}
+
+
+select {
+	font-family: 'Arial';
+	display: inline-block;	
+	cursor: pointer;
+	padding: 2px 3px;
+	outline: 0;
+	border: 0px hidden #000000;
+	border-radius: 10px;
+	background: #191919;
+	color: #55cc66;
+	appearance: none;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+}
+select:hover {
+	color: #cccc00;
+		background: #191919;
+}
+
+.select_arrow {
+    position: absolute;
+    top: 16px;
+    right: 15px;
+    pointer-events: none;
+    border-style: solid;
+    border-width: 8px 5px 0px 5px;
+    border-color: #333333 transparent transparent transparent;
+}
+select:hover ~ .select_arrow,
+select:focus ~ .select_arrow {
+    border-top-color: #000000;
+}
+
+
+input[type=range] {
+  background:none;
+  -webkit-appearance: none;  
+  margin: 10px 0;  
+}
+input[type=range]:focus {
+  outline: none;
+}
+input[type=range]::-webkit-slider-runnable-track {
+  height: 5px;
+  cursor: pointer;
+  animate: 0.2s;
+  box-shadow: 0px 0px 0px #000000;
+  background: #116622;
+  /* border-radius: 5px; */
+  border: 0px solid #000000;
+}
+input[type=range]::-webkit-slider-thumb {
+  box-shadow: 0px 0px 0px #666600;
+  border: 0px solid #44bb55;
+  height: 16px;
+  width: 10px;
+  border-radius: 3px;
+  background: #44bb55;
+  cursor: pointer;
+  -webkit-appearance: none;
+  margin-top: -5.5px;
+}
+
+#loc_bar_cont {
+    position: relative;
+    z-index: 10; /* Ensure it’s above other elements */
+    pointer-events: auto; /* Ensure it can receive events */
+}
+

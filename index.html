@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<script src='jquery-1.11.1.min.js'></script>
+<script src='jquery.cookie.min.js'></script>
+
+<script src='moment.min.js'></script>
+<script src="musicmetadata.js"></script>
+<script src="howler.min.js"></script>
+
+<script src='jukebox.js'></script>
+
+
+<link rel='stylesheet' type='text/css' href='jukebox.css' />
+
+</head>
+
+<body style='margin:24px;'>
+
+<div style="white-space:nowrap;">
+<div style="display:inline-block; white-space:nowrap;">
+	<div style='position:absolute;top:0;left:0;margin:0px;padding:0px;'>
+		<!-- <span id='btn_minmax' class="button no_select" style="color:$ffff33;font-size:10px;padding:2px;width:16px;" >&#8597;</span> -->
+		<select id='station_select' style='font-size:14px;'>
+			<option value=''>...loading...</option>
+		</select>
+	</div>
+	<div style='margin:0px;padding:0px;'>	
+		<span id='btn_back' class="button backb no_select" style="width:30px;" >
+		  &lt;&lt;
+		</span>
+		<span id='btn_play' class="button no_select" style="width:60px;" >
+			>
+		</span>	
+		<span id='btn_next' class="button nextb no_select" style="width:100px;" >
+		  &gt;&gt;
+		</span>	
+		<span style="margin:0px 10px;" >
+			<img src="volume_icon.png" style="vertical-align:middle;width:18px;">
+			<input type="range" min="0" max="100" value="80" id="global_volume" style="width:60px;padding-bottom:2px;">
+		</span>
+		<span id='btn_minmax' class="button no_select" style="background:#44bb55;font-size:14px;padding:5px 3px;width:20px;" >&varr;</span>
+	</div>
+	<div style='margin:5px 0px;padding:0px;'>	
+		<div id='cur_song_title' class="songTitle" style="max-width:400px; white-space:normal;" >Click Play</div>
+		<div id='cur_song_artist' class="songArtist" style="font-size: 21px;display:inline-block;" >To Start</div>	
+		<div id="loc_bar_cont" style='margin:2px 0px;padding:0px;width:400px;background-color:#111111'>	
+			<div id="loc_bar" style='margin:0px;padding:0px;width:400px;height:2px;background-color:#55cc66;'></div>
+		</div>
+	</div>
+
+	<div style='margin:0px;margin-top:-10px;padding:0px;display:inline-block;vertical-align:top; position:relative;'>
+		<div id='song_play_info' class="songInfo" style="min-width:400px;font-size:10px;display:inline-block" ></div>
+		<div id='' style="display:inline-block; margin-top:3px; position:absolute;right:0px;" >
+			<select id='cur_song_rot_lvl' style="padding: 0px 3px;color:#ffaa44; text-align-last: right;">
+				<option value='4'>&starf;&starf;</option>
+				<option value='3'>&starf;&star;</option>
+				<option value='2' selected>&starf;</option>
+				<option value='1'>&star;</option>
+				<option value='0'> &ndash; </option>			
+			</select>
+		</div>
+		<div style="height:3px"></div>
+		<div id='cover_holder' style="margin:0px;padding:0px;min-height:405px;max-height:405px;">
+			<img id='cur_cover' src="./swirls/base/static-dark.gif" style="width:400px">	
+			<img id='cur_cover_t' src="" style="width:400px">	
+		</div>
+		
+		<div id="song_drops" style="margin:0px;font-size: 0px;display:none;">
+			<div style="display: inline-block;">
+				<div id="song_drop_0" class="song_drop" data-dropper=0 data-ncolor="#993333" data-hcolor="#dd9999" 
+					style='background:#993333;'>
+				</div>			
+				<div id="order_type_0" >
+					<div style="display: inline-block;width:11px;"> </div>
+					<img class='play_ord_btn po_list' src="list_icon.png" style="vertical-align:middle;width:18px;">
+					<img class='play_ord_btn po_mix' src="lr_icon.png" style="vertical-align:middle;width:18px;">
+					<img class='play_ord_btn po_rand' src="dice_icon.png" style="vertical-align:middle;width:18px;">
+				</div>
+				<div id="my_slots_0" style="color:#666666;font-size: 10px;text-align:center" ></div>
+			</div>
+			<div style="display: inline-block;vertical-align: top;">
+				<div id="song_drop_1" class="song_drop" data-dropper=1 data-ncolor="#338833" data-hcolor="#99cc99" 
+					 style='background:#338833;'></div>
+				<div id="order_type_1" ></div>
+				<div id="my_slots_1" style="color:#666666;font-size: 10px;text-align:center" ></div>
+			</div>
+			<div style="display: inline-block;vertical-align: top;">
+				<div id="song_drop_2" class="song_drop" data-dropper=2 data-ncolor="#3333bb" data-hcolor="#9999ff" 
+					 style='background:#3333bb;'></div>
+				<div id="order_type_2" ></div>
+				<div id="my_slots_2" style="color:#666666;font-size: 10px;text-align:center" ></div>
+			</div>
+			<div style="display: inline-block;vertical-align: top;">
+				<div id="song_drop_3" class="song_drop" data-dropper=3 data-ncolor="#9922aa" data-hcolor="#dd99ee" 
+					 style='background:#9922aa;'></div>
+				<div id="order_type_3" ></div>
+				<div id="my_slots_3" style="color:#666666;font-size: 10px;text-align:center" ></div>
+			</div>
+		</div>
+		<div id="last_slot" style="color:#666666;font-size: 10px;" ></div>
+		<div id="drop_sign" style="margin:0px;color:#eeee99;font-size: 22px;text-align:center;display:none;"> &uarr; drag and drop here &uarr; </div>
+	</div>
+	<div id="next_song_box" style='margin:0px;padding:0px;display:inline-block;vertical-align:top;'>
+		<div style="height:14px;"></div>
+		<div id='next_song_title' class="songTitle" style="font-size: 14px;"></div>
+		<div id='next_song_artist' class="songTitle" style="font-size: 12px;"></div>
+		<div style="height: 4px;"></div>
+		<img id='next_cover' style="width:100px">
+	</div>
+</div>
+
+<div style="display:inline-block; width:20px; white-space:nowrap;"> </div>
+
+<div id="play_list" style="display:inline-block; vertical-align:top; white-space:nowrap;">
+	<div class="songInfo" style='min-width:300px;font-size:22px;color:#66cc77;margin:0px;padding:4px 12px;background:#444444;border-radius:5px;vertical-align:bottom;'>	
+		<span id="pl_locked" style="font-size:22px;color:#999900;line-height:30px;display: inline-block;vertical-align: middle;">&#128274;</span>
+		<span style="font-size:22px;line-height:30px;display: inline-block;vertical-align: middle;"> Playlist</span>
+		<span style="display: inline-block;min-width:35px;"> </span>
+		<span id="pl_time" style="font-size:14px;color:#ffcc77;line-height:30px;display: inline-block;vertical-align: middle;"></span>
+	</div>
+	<div id="playlist_q" class="songInfo" style='font-size:20px;margin:2px;padding:2px;'>
+	
+	</div>
+</div>
+</div>
+</body>
+
+</html>
