@@ -54,7 +54,7 @@ function onLoad()
 	var btn_back = $("#btn_back");
 	btn_back.on("mousedown", function()
 	{		
-		cur_song_a.seek(0);
+		if( cur_song_a ){  cur_song_a.seek(0);  }
 	});
 	
 	var minimized = getCVal( "minimized", false )=="true";
@@ -151,6 +151,8 @@ function onLoad()
 	
 	function setSongRotLevel( newrotlvl, doneFunc )
 	{
+		//stars only for radio songs
+		if( cur_station=='_iplaylist' || cur_song==null ){  return;  }
 		cur_song_rot_lvl.val(null);
 		call_db( 'setSongRotLevel', {
 			stat_song_id:cur_song.stat_song_id,
@@ -177,6 +179,8 @@ function onLoad()
 	
 	function setGlobalVol(val)
 	{
+		//keep in 0-1
+		val = Math.min( 1, Math.max( 0, val ) );
 		Howler.volume( val );
 		global_volume.val(val*100);
 		
@@ -216,7 +220,7 @@ function onLoad()
 		$("#next_song_title").text( "..." );
 		$("#next_song_artist").text( "..." );
 		var image = document.getElementById('next_cover');
-		image.src="./swirls/base/static-dark.gif";
+		set_cover_src( image, "./swirls/base/static-dark.gif" );
 		
 		//next_song = song_list[ Math.floor(Math.random()*song_list.length) ];
 		//var song_url = next_song.file;
@@ -265,17 +269,28 @@ function onLoad()
 	
 	function load_cover_art( song, image )
 	{
+		if( song==null ){  return;  }
 		if( all_swirls<2 && song.cover!=null) {				
 			//var url = URL.createObjectURL(new Blob([song.cover], {'type': 'image/' + picture.format}));
 			var url = URL.createObjectURL(new Blob( [Uint8Array.from( song.cover.data )], {'type': 'image/jpg'}));
-			image.src = url;				
+			set_cover_src( image, url );				
 		}else
 		if( all_swirls==1 ){
-			image.src = "./swirls/base/blank_d.png";	
+			set_cover_src( image, "./swirls/base/blank_d.png" );	
 		}else{
 			no_covers_i = (no_covers_i + 1 + Math.floor(Math.random()*(no_covers_l-1))) % no_covers_l;
-			image.src = swirl_dir+no_covers[no_covers_i];
+			set_cover_src( image, swirl_dir+no_covers[no_covers_i] );
 		}				
+	}
+	
+	//set a cover, freeing the old blob url if no cover still shows it
+	function set_cover_src( image, url )
+	{
+		var old = image.src;
+		image.src = url;
+		if( old.indexOf("blob:")==0 && old!=document.getElementById('cur_cover').src && old!=document.getElementById('next_cover').src ){
+			URL.revokeObjectURL( old );
+		}
 	}
 
 	
@@ -328,9 +343,9 @@ function onLoad()
 		var imagen = document.getElementById('next_cover');
 		var image = document.getElementById('cur_cover');
 		if( imagen.src!=null ) {			
-			image.src = imagen.src;
+			set_cover_src( image, imagen.src );
 		}else{
-			image.src = "./swirl_1.gif";
+			set_cover_src( image, "./swirl_1.gif" );
 		}
 		var last_play_str = "never";
 		if( cur_song.last_played>1600000000000){
@@ -1474,10 +1489,10 @@ function onLoad()
 		if (song.picture.length > 0) {				
 			var picture = song.picture[0];
 			var url = URL.createObjectURL(new Blob([picture.data], {'type': 'image/' + picture.format}));				
-			image.src = url;
+			set_cover_src( image, url );
 		}else{
 			no_covers_i = (no_covers_i + 1 + Math.floor(Math.random()*(no_covers_l-1))) % no_covers_l;
-			image.src = swirl_dir+no_covers[no_covers_i];
+			set_cover_src( image, swirl_dir+no_covers[no_covers_i] );
 		}
 		$("#cur_song_info").text( song.artist + " - " +song.title );
 		//div.innerText = JSON.stringify(song, undefined, 2);
