@@ -538,10 +538,12 @@ function onLoad()
       if( pre_load_pick<0 && song_dur - cur_song_loc < 5 ){
         pre_load_pick = pick_next_song();
         var next_song = playlist[pre_load_pick];	
-        loadSong( next_song.file, function(sound)
-        {
-          next_song.audio = sound;
-        })
+        if( next_song && !next_song.bad ){
+          loadSong( next_song.file, function(sound)
+          {
+            next_song.audio = sound;
+          })
+        }
       }
 		}		
 	}
@@ -772,11 +774,22 @@ function onLoad()
 		// for( var i=0; i< played.length; i++ ){
 			// play_list.
 		// }
+		//current song back to front, played to end
+		if( cur_song ){
+			pl_end_song(cur_song);
+			playlist.unshift(cur_song);
+		}
 		playlist.push(...played);
 		played.length=0;
-		
-		pl_end_song(cur_song);
 		cur_song=null;
+		
+		//start counts over
+		for( var i=0; i<listers.length; i++ ){
+			listers[i].played=0;
+			listers[i].last_played=0;
+			listers[i].forced_next=-1;
+		}
+		pre_load_pick=-1;
 		
 		cur_song_loc=0;
 		pl_curtime=0;
@@ -868,7 +881,11 @@ function onLoad()
 	
 	pl_q.on("click",".pl_song_item", function(evt){
 		if( evt.shiftKey ){
-			pl_play_next( $(this).find(".plsi_x").data("i") );
+			var i = $(this).find(".plsi_x").data("i");
+			//ignore songs still loading
+			if( i==undefined || pl_song_ready(playlist[i]) ){
+				pl_play_next( i );
+			}
 		}		
 	});
 	
@@ -915,6 +932,12 @@ function onLoad()
 		
 		getMetaData( file, function( err, tags )
 		{
+			//no tags, play with filename
+			if( err || !tags ){
+				console.log(err);
+				tags = { title: "", artist: "", picture: [] };
+			}
+			
 			//override blanks
 			if( !tags.title || tags.title==""){
 				tags.title = file.name;
@@ -938,16 +961,14 @@ function onLoad()
 				
 				redraw_playlist();
 				if( song.tags && cur_song==null ){							
-					pl_play_next(myi);
+					pl_play_next();
 				}
 			},
 			function(id,err){
 				console.log(err);
-				var index = playlist.indexOf(song);
-				if( index > -1 ){
-				  playlist.splice(index, 1);
-				  redraw_playlist(myi);
-				}
+				//keep it shown, thrown away when picked
+				song.bad = true;
+				redraw_playlist();
 			}
 		);
 	}	
@@ -986,22 +1007,35 @@ function onLoad()
 		}
 	}
 		
+	//done loading, or failed and can be thrown away
+	function pl_song_ready(song)
+	{
+		return song.bad || ( song.tags!=null && song.duration>0 );
+	}
+		
 	function pl_play_next(forcedi)
 	{	
-		if( playlist.length>0 )
+		var nexti;
+		
+		if( forcedi != undefined ){
+			nexti = forcedi;
+		}else{
+		if( pre_load_pick>-1 ){
+			nexti = pre_load_pick;
+			pre_load_pick=-1;
+		}else			
+			nexti = pick_next_song();
+		}			
+		
+		//throw away load failures when their turn comes
+		while( nexti>-1 && playlist[nexti].bad ){
+			playlist.splice(nexti,1);
+			adjust_fnexts(nexti);
+			nexti = pick_next_song();
+		}
+		
+		if( nexti>-1 )
 		{	
-			var nexti;
-			
-			if( forcedi != undefined ){
-				nexti = forcedi;
-			}else{
-			if( pre_load_pick>-1 ){
-				nexti = pre_load_pick;
-				pre_load_pick=-1;
-			}else			
-				nexti = pick_next_song();
-			}			
-			
 			// random grabs one that isn't loaded yet
 			// while( playlist[nexti].duration<=0 || playlist[nexti].tags==null ){
 				// nexti = (nexti+1) % playlist.length;				
@@ -1045,7 +1079,11 @@ function onLoad()
 			
 			
 		}else{
-			pl_end_song(last_song);
+			//nothing ready, finish current
+			if( cur_song ){
+				played.push( cur_song );
+			}
+			pl_end_song(cur_song);
 			cur_song=null;
 		}
 		
@@ -1056,8 +1094,20 @@ function onLoad()
 	
 	function pick_next_song()
 	{
-		//if play_list empty return none
-		if( playlist.length==0 ){  return -1;  }
+		//count songs ready to play for each lister
+		var tot_ready=0;
+		for( var i=0; i<listers.length; i++ ){
+			listers[i].songs_rdy=0;
+		}
+		for( var i=0; i<playlist.length; i++ ){
+			if( pl_song_ready(playlist[i]) ){
+				listers[playlist[i].who].songs_rdy++;
+				tot_ready++;
+			}
+		}
+		
+		//if none ready return none
+		if( tot_ready==0 ){  return -1;  }
 		
 		//reorder listers by current played
 		ord_listers.sort( (a,b)=>{ return a.played-b.played; } );
@@ -1072,7 +1122,7 @@ function onLoad()
 			var l=ord_listers[i];
 			var my_slots=0;
 			//only get slots if have songs in que and not last lister
-			if( l.songs_inq>0 && l.who!=last_lister )
+			if( l.songs_rdy>0 && l.who!=last_lister )
 			{				
 				//give slots for how long its been since we played last				
 				my_slots += l.last_played;
@@ -1107,7 +1157,7 @@ function onLoad()
 		
 		//if no one picked, it's probably cuz there's only one who, so just use who of first playlest song
 		if(next_who==undefined){
-			next_who=playlist[0].who;
+			next_who=playlist.filter( pl_song_ready )[0].who;
 		}
 		
 		//keep track of last played
@@ -1129,14 +1179,14 @@ function onLoad()
 
 		//check for forced song first
 		var fni = listers[next_who].forced_next;
-		if( fni>-1 )
+		if( fni>-1 && pl_song_ready(playlist[fni]) )
 		{
 			listers[next_who].forced_next = -1;
 			return fni;
 		}	
 	
 		//now pick a song from who's sublist
-		var whosongs = playlist.filter( (s,i)=>{ s.oi=i; return s.who==next_who; } );
+		var whosongs = playlist.filter( (s,i)=>{ s.oi=i; return s.who==next_who && pl_song_ready(s); } );
 		
 		var ot = play_order_a[next_who];
 		var whichi=0;
@@ -1282,6 +1332,9 @@ function onLoad()
 				   + (bgcolor ? " background:"+bgcolor+";" : "")
 				   +"'>";
 		
+		if(song.bad){
+			htmls += "<span style='color:#ff6666;'>load failed</span> <span style='font-size:12px;'>"+song.filename+"</span>";
+		}else
 		if(song.tags==null){
 			htmls += "...<span style='font-size:12px;'>"+song.filename+"</span>";
 		}else{
@@ -1341,7 +1394,7 @@ function onLoad()
 			});
 		};
 		reader.onerror = function (error) {
-			console.log(err);
+			console.log(error);
 			if(onloaderror){  onloaderror();  }
 	    };
 	}
