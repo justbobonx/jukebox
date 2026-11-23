@@ -14,6 +14,9 @@ function onLoad()
 	var cur_song_a = null;
 	var next_song = null;
 	var next_song_a = null;
+	var next_req = 0;	//bumped each next song request, older ones are stale
+	var play_on_load = false;	//next was hit before next song loaded
+	var RETRY_MS = 3000;	//wait before retrying a failed next song
 	
 	cur_song_d=null;
 	
@@ -94,6 +97,12 @@ function onLoad()
 		cur_song = null;
 		cur_song_a = null;
 		
+		//drop pending next song from old station
+		next_req++;
+		play_on_load = false;
+		btn_next.prop('disabled', false);
+		btn_next.removeClass('button_dis');
+		
 		//playlist
 		if( cur_station=='_iplaylist')
 		{
@@ -148,6 +157,7 @@ function onLoad()
 			rot_level:newrotlvl
 		}, function(json)
 		{
+			if( json.error ){  return;  }
 			cur_song_rot_lvl.val(newrotlvl);			
 			if( doneFunc ){
 				doneFunc();
@@ -192,6 +202,17 @@ function onLoad()
     next_song = null;	
     next_song_a = null;	
     
+		//newer requests make this one stale
+		next_req++;
+		var my_req = next_req;
+		
+		function retry_later()
+		{
+			setTimeout( function(){
+				if( my_req==next_req ){  get_next_song(onLoad);  }
+			}, RETRY_MS );
+		}
+		
 		$("#next_song_title").text( "..." );
 		$("#next_song_artist").text( "..." );
 		var image = document.getElementById('next_cover');
@@ -201,14 +222,31 @@ function onLoad()
 		//var song_url = next_song.file;
 		getNextSong( function(song)
 		{
+			//station changed or newer request
+			if( my_req!=next_req ){  return;  }
+			//db failed, try again
+			if( !song ){
+				retry_later();
+				return;
+			}
+			
 			next_song = song;			
 			var song_url = song.file;			
 			
 			next_song_a = new Howl({
 			  src: [encodeURIComponent(song_url)]
 			});
+			var sound = next_song_a;
+			next_song_a.once('loaderror', function()
+			{
+				//bad file, get another
+				sound.unload();
+				if( my_req==next_req ){  retry_later();  }
+			});
 			next_song_a.once('load', function()
 			{
+				if( my_req!=next_req ){  sound.unload(); return;  }
+				
 				$("#next_song_title").text( next_song.title );
 				$("#next_song_artist").text( next_song.artist );
 				
@@ -216,6 +254,9 @@ function onLoad()
 				$("#next_cover").show();
 				if(onLoad){
 					onLoad();
+				}else
+				if( play_on_load ){
+					play_next();
 				}
 			});
 		
@@ -262,13 +303,16 @@ function onLoad()
 			// markSongPlayed(cur_song);			
 		// }
 		
-		if( next_song==null ){
-			get_next_song(play_next);
+		//not loaded yet, play when it is
+		if( next_song==null || next_song_a.state()!="loaded" ){
+			play_on_load = true;
+			btn_next.prop('disabled', true);
+			btn_next.addClass('button_dis');
 			return;
 		}
-		if( next_song_a.state()!="loaded" ){
-			return;
-		}
+		play_on_load = false;
+		btn_next.prop('disabled', false);
+		btn_next.removeClass('button_dis');
 		
 		cur_song = next_song;		
 		cur_song_a = next_song_a;
@@ -342,8 +386,13 @@ function onLoad()
 	
 	function load_songs()
 	{
+		//switched to playlist before swirls came back
+		if( cur_station=='_iplaylist' ){  return;  }
+		var for_station = cur_station;
 		call_db( 'getSongList', {station:cur_station}, function(json){
 			
+			//switched station while waiting
+			if( for_station!=cur_station ){  return;  }
 			song_list=json.songlist;
 		
 			get_next_song( function(){
@@ -358,6 +407,7 @@ function onLoad()
 	{
 		call_db( 'getStationList', {}, function(json)
 		{
+			if( json.error ){  return;  }
 			stationlist = json.stationlist;			
 			
 			htmlStr="";
@@ -393,7 +443,9 @@ function onLoad()
 	
 	function load_swirls_for_station( doneFunc )
 	{	
-		swirl_dir =  stationlist[cur_station-1].swirl_dir;
+		//find by id, ids may have gaps
+		var station = stationlist.filter( function(s){  return s.id==cur_station;  } )[0];
+		swirl_dir =  station ? station.swirl_dir : "./swirls/";
 		
 		var postData = {
 			url: swirl_dir,
@@ -459,7 +511,9 @@ function onLoad()
 	{
     console.log( "getting next station song--" );
 		call_db( 'getNextSong', {station:cur_station}, function(json){
-			console.log( "  --> "+json.song.title );
+			if( json.song ){
+				console.log( "  --> "+json.song.title );
+			}
 			doneFunc(json.song);
 		});			 
 	}
@@ -493,12 +547,15 @@ function onLoad()
 				json = JSON.parse(jstring);
 			}catch( ex ){				
 				console.log( "call_db failed: "+ex);
+				json = { error: ""+ex };
 			}
 			
 			doneFunc( json );
 		})
     .fail(function(jqXHR, textStatus, errorThrown) {
       console.log("call_db request failed:", textStatus, errorThrown);      
+      //always call back so callers don't stall
+      doneFunc( { error: textStatus } );
     });;
 	}
 	
