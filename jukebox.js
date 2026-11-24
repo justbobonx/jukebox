@@ -719,7 +719,9 @@ function onLoad()
 		}else
 		if( evt.keyCode == 37 ) // left arrow
 		{
-			
+			killEvent(evt);
+			//same as back button, shift too
+			btn_back.trigger( $.Event('mousedown',{shiftKey:evt.shiftKey}) );
 		}else
 		if( evt.keyCode == 38 ) // up arrow
 		{
@@ -988,9 +990,53 @@ function onLoad()
 		$(this).find(".plsi").css('visibility','hidden');	
 	});
 	
+	//queue song being dragged
+	var moving_i=-1;
+	var moving_col;
+	var moving_moved=false;
+	
 	//shift-click shouldn't start a text select, drag still can
 	pl_q.on("mousedown",".pl_song_item", function(evt){
-		if( evt.shiftKey ){  evt.preventDefault();  }
+		if( evt.shiftKey ){  evt.preventDefault(); return;  }
+		//plain drag on a queue song moves it, alt drag selects text
+		var i = $(this).data("i");
+		if( i==undefined || evt.altKey || evt.which!=1 || $(evt.target).hasClass("plsi") ){  return;  }
+		evt.preventDefault();
+		moving_i = i;
+		moving_moved = false;
+		moving_col = this.style.color;
+		$(this).css("color","#ffff33");
+	});
+	
+	//swap a row at a time toward the row under the mouse
+	$(document).on("mousemove", function(evt){
+		if( moving_i<0 ){  return;  }
+		var rows = pl_q.find(".pl_song_item[data-i]");
+		if( rows.length<2 ){  return;  }
+		var to = -1;
+		for( var j=0; j<rows.length; j++ ){
+			var r = $(rows[j]);
+			if( evt.pageY < r.offset().top+r.outerHeight() ){  to = j;  break;  }
+		}
+		//past the bottom, go last
+		if( to<0 ){  to = rows.length-1;  }
+		if( to==moving_i ){  return;  }
+		while( moving_i<to ){  pl_swap( moving_i, moving_i+1 );  moving_i++;  }
+		while( moving_i>to ){  pl_swap( moving_i, moving_i-1 );  moving_i--;  }
+		moving_moved = true;
+		redraw_playlist();
+	});
+	
+	$(document).on("mouseup", function(evt){
+		if( moving_i<0 ){  return;  }
+		var i = moving_i;
+		moving_i=-1;
+		//just a click, put color back so hover stays
+		if( !moving_moved ){
+			pl_q.find(".pl_song_item[data-i="+i+"]").css("color",moving_col);
+			return;
+		}
+		redraw_playlist();
 	});
 	
 	pl_q.on("click",".pl_song_item", function(evt){
@@ -1125,6 +1171,28 @@ function onLoad()
 		if( pre_load_pick>remi ){
 			pre_load_pick--;
 		}
+		
+		//and a song being dragged
+		if( moving_i==remi ){
+			moving_i=-1;
+		}
+		if( moving_i>remi ){
+			moving_i--;
+		}
+	}
+	
+	//swap two queue songs, nexts follow their songs
+	function pl_swap( a, b )
+	{
+		var t = playlist[a];
+		playlist[a] = playlist[b];
+		playlist[b] = t;
+		for( var i=0; i<listers.length; i++ ){
+			if( listers[i].forced_next==a ){  listers[i].forced_next=b;  }else
+			if( listers[i].forced_next==b ){  listers[i].forced_next=a;  }
+		}
+		if( pre_load_pick==a ){  pre_load_pick=b;  }else
+		if( pre_load_pick==b ){  pre_load_pick=a;  }
 	}
 	
 	function pl_end_song(song)
@@ -1479,7 +1547,9 @@ function onLoad()
 
 	function song_item_html( song, i, color, bgcolor,  )
 	{	
-		var htmls="<div class='pl_song_item' style='font-size:16px;color:"+color+";"
+		//dragged song shows yellow
+		if( i>=0 && i==moving_i ){  color="#ffff33";  }
+		var htmls="<div class='pl_song_item'"+(i>=0 ? " data-i="+i : "")+" style='font-size:16px;color:"+color+";"
 				   + (bgcolor ? " background:"+bgcolor+";" : "")
 				   +"'>";
 		
