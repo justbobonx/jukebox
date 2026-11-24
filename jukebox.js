@@ -610,6 +610,7 @@ function onLoad()
 	
 	//song postion update
 	var loc_bar = $('#loc_bar');
+	var song_time = $('#song_time');
   var LOC_BAR_W = 400;
 	set_loc_bar();
 	function update(){
@@ -635,6 +636,13 @@ function onLoad()
 		//colors
 		lbcolor = (lbcolor+1) % 360;
 		loc_bar.css("background", "hsl("+lbcolor+", 60%, 60%)");
+		//song time and left, same color as bar
+		if( cur_song_d!=null ){
+			song_time.text( "[ "+format_time_hms(cur_song_loc)+" | "+format_time_hms(Math.max(0,song_dur-cur_song_loc))+" ]" );
+			song_time.css("color", "hsl("+lbcolor+", 60%, 60%)");
+		}else{
+			song_time.text("");
+		}
 		
 		if( cur_station=='_iplaylist' ){
 			pl_curtime = pl_playedtime+cur_song_loc;
