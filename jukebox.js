@@ -597,6 +597,8 @@ function onLoad()
 	update();	
 	
 	var pre_load_pick=-1;
+	//shift next, this lister goes next over the slot draw
+	var forced_next_who=-1;
 	
 	var lbcolor=Math.random()*360;
 	function set_loc_bar()
@@ -871,6 +873,7 @@ function onLoad()
 			listers[i].forced_next=-1;
 		}
 		pre_load_pick=-1;
+		forced_next_who=-1;
 		
 		cur_song_loc=0;
 		pl_curtime=0;
@@ -960,6 +963,11 @@ function onLoad()
 		$(this).find(".plsi").css('visibility','hidden');	
 	});
 	
+	//shift-click shouldn't start a text select, drag still can
+	pl_q.on("mousedown",".pl_song_item", function(evt){
+		if( evt.shiftKey ){  evt.preventDefault();  }
+	});
+	
 	pl_q.on("click",".pl_song_item", function(evt){
 		if( evt.shiftKey ){
 			var i = $(this).find(".plsi_x").data("i");
@@ -989,6 +997,24 @@ function onLoad()
 		var i = $(this).data("i");
 		var song = playlist[i];
 		var lstr = listers[song.who];
+		//shift, next over everyone, not play now
+		if( evt.shiftKey ){
+			evt.stopPropagation();
+			if( forced_next_who==song.who && lstr.forced_next==i ){
+				forced_next_who=-1;
+				lstr.forced_next=-1;
+			}else{
+				//takes it from anyone else
+				if( forced_next_who>-1 ){  listers[forced_next_who].forced_next=-1;  }
+				forced_next_who=song.who;
+				lstr.forced_next=i;
+			}
+			pre_load_pick=-1;
+			redraw_playlist();
+			return;
+		}
+		//normal click drops the override
+		if( forced_next_who==song.who ){  forced_next_who=-1;  }
 		if( lstr.forced_next==i){
 			lstr.forced_next=-1;
 		}else{
@@ -1229,18 +1255,29 @@ function onLoad()
 			l.np_slots = tot_slots;			
 		}
 		
-		//now draw from slots
-		last_slot = Math.floor( Math.random()*tot_slots );
-		
-		//find who
 		var next_who;
-		for( var i=0; i<ord_listers.length; i++ )
+		
+		//forced next who skips the draw, once their song is ready
+		if( forced_next_who>-1 && listers[forced_next_who].forced_next<0 ){  forced_next_who=-1;  }
+		if( forced_next_who>-1 && pl_song_ready(playlist[listers[forced_next_who].forced_next]) ){
+			next_who = forced_next_who;
+			forced_next_who=-1;
+		}
+		
+		if( next_who==undefined )
 		{
-			var l=ord_listers[i];
+			//now draw from slots
+			last_slot = Math.floor( Math.random()*tot_slots );
 			
-			if( last_slot<l.np_slots ){
-				next_who = l.who;
-				break;
+			//find who
+			for( var i=0; i<ord_listers.length; i++ )
+			{
+				var l=ord_listers[i];
+				
+				if( last_slot<l.np_slots ){
+					next_who = l.who;
+					break;
+				}
 			}
 		}
 		
@@ -1434,7 +1471,7 @@ function onLoad()
 			var fn = listers[song.who].forced_next==i;
 			htmls += "&nbsp;"
 			if(fn){ 
-				htmls += "<span style='color:#ffff33;font-size:14px;'>*</span>";
+				htmls += "<span style='color:#ffff33;font-size:14px;'>"+(forced_next_who==song.who ? "**" : "*")+"</span>";
 			}
 			htmls += "<span class='plsi plsi_next' data-i="+i+" style='color:"+(fn?"#ffff33":"#888833")+";font-size:12px;visibility:hidden;'> ¡next! </span>";
 			
