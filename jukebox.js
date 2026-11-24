@@ -358,7 +358,15 @@ function onLoad()
 		var songt = $("#next_song_title").text();
 		var songa = $("#next_song_artist").text();
 		
-		$("#cur_song_title").prop('title', JSON.stringify(cur_song));
+		//hover info, nice rows then full db row for debug
+		var ihtml = "<table>"+info_row( "Title", cur_song.title )+info_row( "Artist", cur_song.artist )
+			+info_row( "Plays", next_song.tot_plays+1 )+info_row( "Last", last_play_str )
+			+info_row( "Stars", $("#cur_song_rot_lvl option:selected").text() )+info_row( "File", cur_song.file )+"</table>";
+		ihtml += "<table class='songInfoDbg'>";
+		for( var k in cur_song ){
+			ihtml += "<tr><td>"+k+"</td><td>"+$("<div>").text( info_text(cur_song[k]) ).html()+"</td></tr>";
+		}
+		$("#song_info").html( ihtml+"</table>" );
 		$("#cur_song_title").text( songt );
 		$("#cur_song_artist").text( songa );
 		
@@ -1454,7 +1462,47 @@ function onLoad()
 
 	function getMetaData( data, callback )
 	{
-		musicmetadata( data, callback );
+		jsmediatags.read( data, {
+			onSuccess: function(res){
+				var t = res.tags;
+				//same shape musicmetadata gave, plus everything read
+				var pics = [];
+				if( t.picture ){
+					pics.push({ data: new Uint8Array(t.picture.data), format: t.picture.format.replace("image/","") });
+				}
+				callback( null, { title: t.title || "", artist: t.artist || "", year: t.year || "", picture: pics, raw: t } );
+			},
+			onError: function(err){
+				callback( err );
+			}
+		});
+	}
+	
+	//one info box row, skipped when empty
+	function info_row( label, val )
+	{
+		if( val==null || val==="" ){  return "";  }
+		return "<tr><td>"+label+"</td><td>"+$("<div>").text( val ).html()+"</td></tr>";
+	}
+	
+	//one readable line for a db field or tag frame
+	function info_text( v )
+	{
+		if( v==null ){  return "";  }
+		if( typeof v!="object" ){  return String(v);  }
+		//tag frame wraps its value
+		if( v.id!=undefined && v.data!=undefined ){  v = v.data;  }
+		if( typeof v!="object" ){  return String(v);  }
+		//pictures and blobs, just size
+		var bytes = v.data!=undefined ? v.data : v;
+		if( bytes.length!=undefined && typeof bytes[0]=="number" ){
+			return (v.format ? v.format+", " : "")+bytes.length+" bytes";
+		}
+		//comments and lyrics
+		if( v.text!=undefined ){  return (v.short_description ? v.short_description+": " : "")+v.text;  }
+		//user text frames
+		if( v.user_description!=undefined ){  return v.user_description+": "+v.data;  }
+		return JSON.stringify(v);
 	}
 	
 	function loadSong( file, onload, onloaderror )
@@ -1509,7 +1557,26 @@ function onLoad()
 		$("#song_play_info").html( "Plays: -- &nbsp;&nbsp; Last: --" );
 		$("#cur_song_rot_lvl").val( 0 );			
 		
-		$("#cur_song_title").prop('title', JSON.stringify(song));
+		//hover info, nice rows then every tag read
+		var ihtml = "<table>"+info_row( "Title", song.title )+info_row( "Artist", song.artist )
+			+info_row( "Length", format_time_hms(cur_song.duration) )+info_row( "File", cur_song.filename )
+			+"<tr><td>Who</td><td style='color:"+song_cols[cur_song.who]+";'>player "+(cur_song.who+1)+"</td></tr></table>";
+		ihtml += "<table class='songInfoDbg'>";
+		//raw frames, or the plain fields if the format has no frames
+		var frames = 0;
+		for( var k in song.raw ){
+			var f = song.raw[k];
+			if( f && f.id!=undefined ){
+				ihtml += "<tr><td>"+k+(f.description ? " "+f.description : "")+"</td><td>"+$("<div>").text( info_text(f) ).html()+"</td></tr>";
+				frames++;
+			}
+		}
+		if( frames==0 ){
+			for( var k in song.raw ){
+				ihtml += "<tr><td>"+k+"</td><td>"+$("<div>").text( info_text(song.raw[k]) ).html()+"</td></tr>";
+			}
+		}
+		$("#song_info").html( ihtml+"</table>" );
 		$("#cur_song_title").text( song.title );
 		$("#cur_song_artist").html( song.artist +
       ((song.year && song.year!="") ? ("<span class=\"songYear\">  ("+song.year+")</span>") : "")
@@ -1519,6 +1586,14 @@ function onLoad()
 		document.title =  "JB: "+song.title+" - "+song.artist;		
 	}
 	
+	
+	//song info box on title hover
+	$("#cur_song_title").on("mouseenter", function(){
+		if( $("#song_info").html()!="" ){  $("#song_info").show();  }
+	});
+	$("#cur_song_title").on("mouseleave", function(){
+		$("#song_info").hide();
+	});
 	
 	// startup /////////////////////////////////////////
 	

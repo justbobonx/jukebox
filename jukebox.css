@@ -221,6 +221,29 @@ input[type=range]::-webkit-slider-thumb {
   margin-top: -5.5px;
 }
 
+#song_info {
+  display: none;
+  position: absolute;
+  z-index: 20;
+  max-width: 500px;
+  padding: 6px 8px;
+  background-color: #1a1a1a;
+  border: 1px solid #555555;
+  color: #dddddd;
+  font-size: 13px;
+  white-space: normal;
+  word-break: break-all;
+}
+#song_info td {
+  padding: 0px 8px 0px 0px;
+  vertical-align: top;
+}
+.songInfoDbg {
+  margin-top: 6px;
+  font-size: 10px;
+  color: #888888;
+}
+
 #loc_bar_cont {
     position: relative;
     z-index: 10; /* Ensure it’s above other elements */
