@@ -851,7 +851,8 @@ function onLoad()
 			pl_end_song(cur_song);
 			playlist.unshift(cur_song);
 		}
-		playlist.push(...played);
+		//bad loads dropped, everyone has seen them
+		playlist.push(...played.filter( function(s){ return !s.bad; } ));
 		played.length=0;
 		cur_song=null;
 		
@@ -1099,8 +1100,14 @@ function onLoad()
 			nexti = pick_next_song();
 		}			
 		
-		//throw away load failures when their turn comes
+		//current goes to history first, so failures land after it
+		if( cur_song ){
+			played.push( cur_song );
+		}
+		
+		//load failures go to history when their turn comes
 		while( nexti>-1 && playlist[nexti].bad ){
+			played.push( playlist[nexti] );
 			playlist.splice(nexti,1);
 			adjust_fnexts(nexti);
 			nexti = pick_next_song();
@@ -1116,9 +1123,6 @@ function onLoad()
 			var last_song = cur_song;
 			
 			//pull new song
-			if( cur_song ){
-				played.push( cur_song );
-			}		
 			cur_song = playlist[nexti];			
 			playlist.splice(nexti,1);
 			
@@ -1146,15 +1150,20 @@ function onLoad()
 					
 					btn_next.prop('disabled', false);
 					btn_next.removeClass('button_dis');
+				},
+				function(){
+					//failed at play, skip on like the next button
+					pl_end_song(last_song);
+					cur_song.bad = true;
+					btn_next.prop('disabled', false);
+					btn_next.removeClass('button_dis');
+					pl_play_next();
 				})
 			}
 			
 			
 		}else{
 			//nothing ready, finish current
-			if( cur_song ){
-				played.push( cur_song );
-			}
 			pl_end_song(cur_song);
 			cur_song=null;
 		}
@@ -1312,7 +1321,7 @@ function onLoad()
 		for( var i=0; i< playlist.length; i++ ){
 			song = playlist[i];
 			htmls += song_item_html(song, i, song.duration ? song_cols[song.who] : "#888888", i%2==0 ? "#222222" : 0 );
-			pl_totquetime+=song.duration;
+			if( song.duration>0 ){  pl_totquetime+=song.duration;  }
 			listers[song.who].songs_inq++;
 		}
 		
@@ -1321,7 +1330,7 @@ function onLoad()
 		for( var i=0; i< played.length; i++ ){
 			song =  played[i];
 			htmls += song_item_html( song, -1, "#888888");
-			pl_tottime+=song.duration;
+			if( song.duration>0 ){  pl_tottime+=song.duration;  }
 		}
 		if( played.length>0 ){
 			htmls += "<div id='btn_reload' class='button backb reloadb no_select' style='margin-left:100px;' >reload</div>";
