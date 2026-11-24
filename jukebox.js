@@ -52,8 +52,33 @@ function onLoad()
 	});
 	
 	var btn_back = $("#btn_back");
-	btn_back.on("mousedown", function()
+	btn_back.on("mousedown", function(evt)
 	{		
+		//shift in playlist, replay last heard song, current goes back like never picked
+		if( evt.shiftKey && cur_station=='_iplaylist' ){
+			var j = played.length-1;
+			while( j>-1 && played[j].bad ){  j--;  }
+			if( j<0 ){  return;  }
+			var back_song = played.splice(j,1)[0];
+			var added = 1;
+			if( cur_song ){
+				listers[cur_song.who].played--;
+				pl_end_song(cur_song);
+				playlist.unshift(cur_song);
+				cur_song=null;
+				added++;
+			}
+			//replay doesn't count as a new play, pl_play_next adds it back
+			listers[back_song.who].played--;
+			playlist.unshift(back_song);
+			//queue shifted, move the nexts with it
+			for( var i=0; i<listers.length; i++ ){
+				if( listers[i].forced_next>-1 ){  listers[i].forced_next += added;  }
+			}
+			pre_load_pick=-1;
+			pl_play_next(0);
+			return;
+		}
 		if( cur_song_a ){  cur_song_a.seek(0);  }
 	});
 	
