@@ -244,6 +244,39 @@ input[type=range]::-webkit-slider-thumb {
   color: #888888;
 }
 
+#help_box {
+  display: none;
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 100;
+  padding: 14px 18px;
+  background-color: #1a1a1a;
+  border: 1px solid #555555;
+  border-radius: 8px;
+  color: #dddddd;
+  font-family: Tahoma, Geneva, sans-serif;
+  font-size: 13px;
+  white-space: nowrap;
+}
+#help_box td {
+  padding: 1px 16px 1px 0px;
+  vertical-align: top;
+}
+#help_box .help_sec td {
+  padding-top: 10px;
+  padding-bottom: 3px;
+  color: #aaaa88;
+  font-size: 11px;
+}
+#help_box tr.help_sec:first-child td {
+  padding-top: 0px;
+}
+#help_box .help_key {
+  color: #88ccee;
+}
+
 #loc_bar_cont {
     position: relative;
     z-index: 10; /* Ensure it’s above other elements */

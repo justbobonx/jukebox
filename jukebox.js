@@ -699,6 +699,13 @@ function onLoad()
 	
 	document.addEventListener('keydown', function(evt)
 	{
+		if( evt.keyCode == 112 ) // F1
+		{
+			killEvent(evt);
+			$("#help_box").show();
+			return;
+		}
+		
 		if( evt.keyCode == 76 ) // L
 		{
 			locking="L";
@@ -797,6 +804,11 @@ function onLoad()
 	// shortcut keys ///////////
 	document.addEventListener('keyup', function(evt)
 	{		
+		if( evt.keyCode == 112 ) // F1
+		{
+			$("#help_box").hide();
+			return;
+		}
 		if( evt.keyCode == 76 ){
 			if( locking.length>1 ){
 				if( locked && locking==locked ){
