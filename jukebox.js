@@ -835,7 +835,8 @@ function onLoad()
 			played:0,
 			last_played:0,
 			my_slots:0,
-			forced_next: -1
+			forced_next: -1,
+			last_artist: ""
 		});
 	}
 	var ord_listers = listers.slice();
@@ -859,6 +860,13 @@ function onLoad()
 		play_order_a = [1,1,1,1];
 	}
 	
+	//no same artist in a row, own cookie too, default on
+	var no_artist_a = [1,1,1,1];
+	var noartistjs = getCVal( "no_artist_a", null );
+	if( noartistjs ){
+		no_artist_a = JSON.parse(noartistjs);
+	}
+	
 	for( var i=0; i<4; i++ ){
 		var lister = listers[i];
 		var otg = $("#order_type_"+i);
@@ -870,6 +878,9 @@ function onLoad()
 		lister.order_type_g_po[PO_RAND] = otg.find(".po_rand").data("ot",2);		
 		
 		set_icon_on( lister.order_type_g_po[ play_order_a[i] ], 1 );
+		
+		lister.artist_g = otg.find(".artist_btn");
+		set_icon_on( lister.artist_g, no_artist_a[i] );
 	}	
 		
 	
@@ -884,6 +895,13 @@ function onLoad()
 		set_icon_on( lister.order_type_g_po[ play_order_a[i] ], 1 );
 		
 		setCVal( "play_order_a", JSON.stringify(play_order_a) );		
+	});
+	
+	$("#song_drops").on("click",".artist_btn", function(evt){
+		var i = $(this).parent().data("i");
+		no_artist_a[i] = no_artist_a[i] ? 0 : 1;
+		set_icon_on( listers[i].artist_g, no_artist_a[i] );
+		setCVal( "no_artist_a", JSON.stringify(no_artist_a) );
 	});
 	
 	
@@ -906,6 +924,7 @@ function onLoad()
 			listers[i].played=0;
 			listers[i].last_played=0;
 			listers[i].forced_next=-1;
+			listers[i].last_artist="";
 		}
 		pre_load_pick=-1;
 		forced_next_who=-1;
@@ -1264,6 +1283,7 @@ function onLoad()
 			adjust_fnexts(nexti);
 				
 			listers[cur_song.who].played++;
+			listers[cur_song.who].last_artist = song_artist(cur_song);
 			
 			if( cur_song.audio ){
 				pl_end_song(last_song);
@@ -1415,6 +1435,14 @@ function onLoad()
 		//now pick a song from who's sublist
 		var whosongs = playlist.filter( (s,i)=>{ s.oi=i; return s.who==next_who && pl_song_ready(s); } );
 		
+		//no same artist as playing or their last, unless that's all they have
+		if( no_artist_a[next_who] ){
+			var cur_a = song_artist(cur_song);
+			var last_a = listers[next_who].last_artist;
+			var difsongs = whosongs.filter( function(s){  var a = song_artist(s);  return a=="" || ( a!=cur_a && a!=last_a );  } );
+			if( difsongs.length>0 ){  whosongs = difsongs;  }
+		}
+		
 		var ot = play_order_a[next_who];
 		var whichi=0;
 		
@@ -1439,6 +1467,13 @@ function onLoad()
 		return whosongs[whichi].oi;
 	}
 	
+	
+	//artist for same artist checks, blank never matches
+	function song_artist(s)
+	{
+		if( !s || !s.tags || !s.tags.artist ){  return "";  }
+		return String(s.tags.artist).toLowerCase().trim();
+	}
 	
 	var song_cols = [ "#dd9999", "#99cc99", "#9999ff", "#dd99ee" ]
 	
