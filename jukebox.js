@@ -17,6 +17,7 @@ function onLoad()
 	var next_req = 0;	//bumped each next song request, older ones are stale
 	var play_on_load = false;	//next was hit before next song loaded
 	var RETRY_MS = 3000;	//wait before retrying a failed next song
+	var MAX_LOADS = 10;	//max song files loading at once
 	
 	cur_song_d=null;
 	
@@ -1179,32 +1180,80 @@ function onLoad()
 			
 			redraw_playlist();
 			//cuts in over radio or idle
-			if( song.duration>0 && !is_pl_song(cur_song) ){				
+			if( !is_pl_song(cur_song) && pl_any_ready() ){				
 				pl_play_next();
 			}
 		});
 		
-		
-		loadSong( file,
+		//full file load waits for a slot
+		load_pending.push(song);
+		pl_start_loads();
+	}
+	
+	//songs waiting for a load slot
+	var load_pending = [];
+	var loads_inflight = 0;
+	
+	//next waiting song, front of the queue first
+	function pl_next_to_load()
+	{
+		var i, song;
+		//drop songs no longer in the queue
+		for( i=load_pending.length-1; i>=0; i-- ){
+			song = load_pending[i];
+			if( playlist.indexOf(song)<0 || song.duration>0 || song.bad ){
+				load_pending.splice(i,1);
+			}
+		}
+		for( i=0; i<playlist.length; i++ ){
+			if( load_pending.indexOf(playlist[i])>-1 ){
+				return playlist[i];
+			}
+		}
+		return null;
+	}
+	
+	//load one song, then free the slot
+	function pl_load_one(song)
+	{
+		loadSong( song.file,
 			function(sound){
 				//song.audio = sound;
 				song.duration = sound.duration();
 				//unload until needed
 				sound.unload();
 				
+				loads_inflight--;
 				redraw_playlist();
-				if( song.tags && !is_pl_song(cur_song) ){							
+				//cuts in over radio or idle, only if still playable
+				if( !is_pl_song(cur_song) && pl_any_ready() ){							
 					pl_play_next();
 				}
+				pl_start_loads();
 			},
 			function(id,err){
 				console.log(err);
 				//keep it shown, thrown away when picked
 				song.bad = true;
+				loads_inflight--;
 				redraw_playlist();
+				pl_start_loads();
 			}
 		);
-	}	
+	}
+	
+	//start waiting loads up to the max
+	function pl_start_loads()
+	{
+		while( loads_inflight<MAX_LOADS ){
+			var song = pl_next_to_load();
+			if( !song ){  return;  }
+			//take it off the wait list
+			load_pending.splice( load_pending.indexOf(song), 1 );
+			loads_inflight++;
+			pl_load_one(song);
+		}
+	}
 	
 	//bump down the forced_nexts when a song is removed
 	function adjust_fnexts(remi)
@@ -1548,7 +1597,7 @@ function onLoad()
 		htmls += "<div style='height:10px;'></div>";
 		for( var i=0; i< playlist.length; i++ ){
 			song = playlist[i];
-			htmls += song_item_html(song, i, song.duration ? song_cols[song.who] : "#888888", i%2==0 ? "#222222" : 0 );
+			htmls += song_item_html(song, i, song.duration>0 ? song_cols[song.who] : "#888888", i%2==0 ? "#222222" : 0 );
 			if( song.duration>0 ){  pl_totquetime+=song.duration;  }
 			listers[song.who].songs_inq++;
 		}
@@ -1649,6 +1698,8 @@ function onLoad()
 		if(song.tags==null){
 			htmls += "...<span style='font-size:12px;'>"+song.filename+"</span>";
 		}else{
+			//tags in, file not loaded yet
+			if( !(song.duration>0) ){  htmls += "...";  }
 			htmls += song.tags.title+" - <span style='font-size:14px;'>"+song.tags.artist+"</span>";
 		}
 		
