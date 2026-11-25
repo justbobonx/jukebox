@@ -41,6 +41,7 @@
 			<input type="range" min="0" max="100" value="80" id="global_volume" style="width:60px;padding-bottom:2px;">
 		</span>
 		<span id='btn_minmax' class="button no_select" style="background:#44bb55;font-size:14px;padding:5px 3px;width:20px;" >&varr;</span>
+		<span id='btn_pllist' class="button no_select" style="background:#44bb55;font-size:14px;padding:5px 3px;width:20px;" ><img src="list-64.png" style="vertical-align:middle;width:14px;"></span>
 	</div>
 	<div style='margin:5px 0px;padding:0px;'>	
 		<div id='cur_song_title' class="songTitle" style="max-width:400px; white-space:normal;" >Click Play</div>
@@ -71,7 +72,7 @@
 			<img id='cur_cover_t' src="" style="width:400px">	
 		</div>
 		
-		<div id="song_drops" style="margin:0px;font-size: 0px;display:none;">
+		<div id="song_drops" style="margin:0px;font-size: 0px;">
 			<div style="display: inline-block;">
 				<div id="song_drop_0" class="song_drop" data-dropper=0 data-ncolor="#993333" data-hcolor="#dd9999" 
 					style='background:#993333;'>
@@ -134,8 +135,10 @@
 <div id='help_box'>
 	<table>
 		<tr class='help_sec'><td colspan='2'>Jukebox</td></tr>
-		<tr><td><span style='color:#55cc66;'>Station dropdown</span> (top left)</td><td>pick a radio station or Playlist</td></tr>
-		<tr><td>Drag mp3s onto a color box</td><td>queue songs for that player &nbsp;<span style='color:#dd9999;'>&#9632;</span><span style='color:#99cc99;'>&#9632;</span><span style='color:#9999ff;'>&#9632;</span><span style='color:#dd99ee;'>&#9632;</span></td></tr>
+		<tr><td><span style='color:#55cc66;'>Station dropdown</span> (top left)</td><td>pick the radio station</td></tr>
+		<tr><td>Queued songs play first</td><td>radio plays when the queue is empty</td></tr>
+		<tr><td>Drag mp3s onto a color box</td><td>queue songs for that player, turns the playlist on &nbsp;<span style='color:#dd9999;'>&#9632;</span><span style='color:#99cc99;'>&#9632;</span><span style='color:#9999ff;'>&#9632;</span><span style='color:#dd99ee;'>&#9632;</span></td></tr>
+		<tr><td>&nbsp; <img src="list-64.png" style="vertical-align:middle;width:16px;background:#44bb55;border-radius:3px;"></td><td>show playlist or next radio song</td></tr>
 		<tr class='help_sec'><td colspan='2'>Play order icons (playlist)</td></tr>
 		<tr><td>Pick a play order</td><td></td></tr>
 		<tr><td>&nbsp; <img src="list_icon.png" style="vertical-align:middle;width:16px;"></td><td>each player's songs in queue order</td></tr>

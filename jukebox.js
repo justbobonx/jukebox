@@ -55,13 +55,13 @@ function onLoad()
 	btn_back.on("mousedown", function(evt)
 	{		
 		//shift in playlist, replay last heard song, current goes back like never picked
-		if( evt.shiftKey && cur_station=='_iplaylist' ){
+		if( evt.shiftKey ){
 			var j = played.length-1;
 			while( j>-1 && played[j].bad ){  j--;  }
 			if( j<0 ){  return;  }
 			var back_song = played.splice(j,1)[0];
 			var added = 1;
-			if( cur_song ){
+			if( is_pl_song(cur_song) ){
 				listers[cur_song.who].played--;
 				pl_end_song(cur_song);
 				playlist.unshift(cur_song);
@@ -83,10 +83,18 @@ function onLoad()
 	});
 	
 	var minimized = getCVal( "minimized", false )=="true";
+	//playlist shown, or next radio song shown
+	var pl_on = getCVal( "pl_on", "true" )=="true";
 	var btn_minmax = $("#btn_minmax");
 	btn_minmax.on("mousedown", function()
 	{
 		setMinimized( !minimized );
+	});
+	
+	var btn_pllist = $("#btn_pllist");
+	btn_pllist.on("mousedown", function()
+	{
+		setPlOn( !pl_on );
 	});
 	
 	function setMinimized(m)
@@ -96,13 +104,21 @@ function onLoad()
 		
 		$("#cover_holder").toggle(!minimized);
 		
-		if( cur_station=='_iplaylist' ){
-			$("#next_song_box").toggle(false);
-		}else{
-			$("#next_song_box").toggle(!minimized);
-		}
+		//next song only with playlist off, minimize hides it too
+		$("#next_song_box").toggle( !minimized && !pl_on );
 	}
 	setMinimized( minimized );
+	
+	function setPlOn(on)
+	{
+		pl_on=on;
+		setCVal( "pl_on", pl_on );
+		
+		$("#play_list").toggle(pl_on);
+		set_icon_on( btn_pllist.find("img"), pl_on );
+		setMinimized( minimized );
+	}
+	setPlOn( pl_on );
 	
 	var station_select = $("#station_select");
 	station_select.on("change", function()
@@ -116,54 +132,25 @@ function onLoad()
 		//set swirl for station
 		all_swirls = parseInt( getCVal('all_swirls_'+cur_station,0) );		
 		
-		stop();
-		
-		//clear current song (also doesn't set as played for station skipping
-		cur_song = null;
-		cur_song_a = null;
+		//playlist song keeps playing, only the radio behind it changes
+		if( !is_pl_song(cur_song) ){
+			stop();
+			
+			//clear current song (also doesn't set as played for station skipping
+			cur_song = null;
+			cur_song_a = null;
+		}
 		
 		//drop pending next song from old station
-		next_req++;
+		drop_next_song();
 		play_on_load = false;
 		btn_next.prop('disabled', false);
 		btn_next.removeClass('button_dis');
 		
-		//playlist
-		if( cur_station=='_iplaylist')
-		{
-			//set to playlist
-			play_next = pl_play_next;
-			cur_song=null;
-			$("#next_song_box").hide();
-			$("#song_drops").show();
-			$("#play_list").show();
-			
-			if( !indev ){
-				$(window).bind('beforeunload', function(){
-				  return event.returnValue = "WARNING: Leaving will end and lose your playlist!";
-				});
-			}
-			
-		}
-		//radio station
-		else
-		{
-			//set next for radio channels
-			play_next = play_next_rad;
-			$("#next_song_box").show();
-			$("#song_drops").hide();
-			$("#play_list").hide();
-			
-			//load swirls for station
-			load_swirls_for_station( 
-				load_songs
-			)
-
-			$(window).unbind('beforeunload');
-			
-		}
-		
-		setMinimized( minimized );
+		//load swirls for station
+		load_swirls_for_station( 
+			load_songs
+		)
 		
 	});
 	
@@ -177,7 +164,7 @@ function onLoad()
 	function setSongRotLevel( newrotlvl, doneFunc )
 	{
 		//stars only for radio songs
-		if( cur_station=='_iplaylist' || cur_song==null ){  return;  }
+		if( cur_song==null || cur_song.stat_song_id==undefined ){  return;  }
 		cur_song_rot_lvl.val(null);
 		call_db( 'setSongRotLevel', {
 			stat_song_id:cur_song.stat_song_id,
@@ -225,9 +212,19 @@ function onLoad()
 	}
 	setLocked(0);
 	
+	//throw away the preloaded radio song, unless it's the one playing
+	function drop_next_song()
+	{
+		next_req++;
+		if( next_song_a!=null && next_song_a!=cur_song_a ){  next_song_a.unload();  }
+		next_song = null;
+		next_song_a = null;
+	}
+	
 	function get_next_song(onLoad)
 	{
     //important to get rid of old song;
+		if( next_song_a!=null && next_song_a!=cur_song_a ){  next_song_a.unload();  }
     next_song = null;	
     next_song_a = null;	
     
@@ -295,9 +292,8 @@ function onLoad()
 	function load_cover_art( song, image )
 	{
 		if( song==null ){  return;  }
-		if( all_swirls<2 && song.cover!=null) {				
-			//var url = URL.createObjectURL(new Blob([song.cover], {'type': 'image/' + picture.format}));
-			var url = URL.createObjectURL(new Blob( [Uint8Array.from( song.cover.data )], {'type': 'image/jpg'}));
+		var url = all_swirls<2 ? cover_url( song ) : null;
+		if( url!=null ) {				
 			set_cover_src( image, url );				
 		}else
 		if( all_swirls==1 ){
@@ -306,6 +302,19 @@ function onLoad()
 			no_covers_i = (no_covers_i + 1 + Math.floor(Math.random()*(no_covers_l-1))) % no_covers_l;
 			set_cover_src( image, swirl_dir+no_covers[no_covers_i] );
 		}				
+	}
+	
+	//song's own art as a blob url, radio or playlist, null if none
+	function cover_url( song )
+	{
+		if( song.cover!=null ){
+			return URL.createObjectURL(new Blob( [Uint8Array.from( song.cover.data )], {'type': 'image/jpg'}));
+		}
+		if( song.tags && song.tags.picture && song.tags.picture.length>0 ){
+			var picture = song.tags.picture[0];
+			return URL.createObjectURL(new Blob([picture.data], {'type': 'image/' + picture.format}));
+		}
+		return null;
 	}
 	
 	//set a cover, freeing the old blob url if no cover still shows it
@@ -333,6 +342,16 @@ function onLoad()
 		}
 	}
 
+	//queued songs first, radio when the queue is empty
+	function play_next()
+	{
+		if( is_pl_song(cur_song) || pl_any_ready() ){
+			pl_play_next();
+		}else{
+			play_next_rad();
+		}
+	}
+	
 	function play_next_rad()
 	{	
 		//always stop		
@@ -421,7 +440,6 @@ function onLoad()
 	
 	function stop()
 	{
-		Howler.stop();
 		cur_song_d=null;
 		if( cur_song_a!=null ){
 			cur_song_a.pause();
@@ -434,8 +452,6 @@ function onLoad()
 	
 	function load_songs()
 	{
-		//switched to playlist before swirls came back
-		if( cur_station=='_iplaylist' ){  return;  }
 		var for_station = cur_station;
 		call_db( 'getSongList', {station:cur_station}, function(json){
 			
@@ -444,6 +460,8 @@ function onLoad()
 			song_list=json.songlist;
 		
 			get_next_song( function(){
+				//playlist song playing, radio waits as next
+				if( is_pl_song(cur_song) ){  return;  }
 				play_next();
 			});
 		});		 
@@ -463,8 +481,6 @@ function onLoad()
 			stationlist.forEach( function(d,i){
 				htmlStr+="<option value='"+d.id+"'>"+d.name+"</option>;"
 			});
-			
-			htmlStr+="<option value='_iplaylist'>Playlist</option>;"
 			
 			station_select.html(htmlStr);
 			
@@ -644,7 +660,7 @@ function onLoad()
 			song_time.text("");
 		}
 		
-		if( cur_station=='_iplaylist' ){
+		if( is_pl_song(cur_song) ){
 			pl_curtime = pl_playedtime+cur_song_loc;
 			pd_update_time();
       
@@ -922,14 +938,14 @@ function onLoad()
 			// play_list.
 		// }
 		//current song back to front, played to end
-		if( cur_song ){
+		if( is_pl_song(cur_song) ){
 			pl_end_song(cur_song);
 			playlist.unshift(cur_song);
+			cur_song=null;
 		}
 		//bad loads dropped, everyone has seen them
 		playlist.push(...played.filter( function(s){ return !s.bad; } ));
 		played.length=0;
-		cur_song=null;
 		
 		//start counts over
 		for( var i=0; i<listers.length; i++ ){
@@ -947,7 +963,8 @@ function onLoad()
 		
 		redraw_playlist();
 		
-		pl_play_next();
+		//cuts in over radio
+		if( pl_any_ready() ){  pl_play_next();  }
 	});
 	
 	
@@ -1004,10 +1021,8 @@ function onLoad()
 		
 		if( !files || files.length<1 ){  return;  }
 		
-		//switch to station
-		if(  cur_station!='_iplaylist' ){
-			station_select.val('_iplaylist').change();
-		}
+		//show the playlist
+		setPlOn( true );
 		
 		var who = $(this).data("dropper");
 		
@@ -1163,7 +1178,8 @@ function onLoad()
 			song.tags=tags;
 			
 			redraw_playlist();
-			if( song.duration>0 && cur_song==null ){				
+			//cuts in over radio or idle
+			if( song.duration>0 && !is_pl_song(cur_song) ){				
 				pl_play_next();
 			}
 		});
@@ -1177,7 +1193,7 @@ function onLoad()
 				sound.unload();
 				
 				redraw_playlist();
-				if( song.tags && cur_song==null ){							
+				if( song.tags && !is_pl_song(cur_song) ){							
 					pl_play_next();
 				}
 			},
@@ -1251,6 +1267,21 @@ function onLoad()
 	{
 		return song.bad || ( song.tags!=null && song.duration>0 );
 	}
+	
+	//any good queue song ready, without picking
+	function pl_any_ready()
+	{
+		for( var i=0; i<playlist.length; i++ ){
+			if( !playlist[i].bad && pl_song_ready(playlist[i]) ){  return true;  }
+		}
+		return false;
+	}
+	
+	//playlist songs have a player, radio songs don't
+	function is_pl_song(s)
+	{
+		return s!=null && s.who!=undefined;
+	}
 		
 	function pl_play_next(forcedi)
 	{	
@@ -1267,7 +1298,7 @@ function onLoad()
 		}			
 		
 		//current goes to history first, so failures land after it
-		if( cur_song ){
+		if( is_pl_song(cur_song) ){
 			played.push( cur_song );
 		}
 		
@@ -1296,6 +1327,9 @@ function onLoad()
 				
 			listers[cur_song.who].played++;
 			listers[cur_song.who].last_artist = song_artist(cur_song);
+			
+			//radio waiting to start is off
+			play_on_load = false;
 			
 			if( cur_song.audio ){
 				pl_end_song(last_song);
@@ -1330,9 +1364,10 @@ function onLoad()
 			
 			
 		}else{
-			//nothing ready, finish current
+			//nothing ready, finish current, radio takes over
 			pl_end_song(cur_song);
 			cur_song=null;
+			play_next_rad();
 		}
 		
 		redraw_playlist();
@@ -1361,7 +1396,7 @@ function onLoad()
 		ord_listers.sort( (a,b)=>{ return a.played-b.played; } );
 		
 		var most_plays = ord_listers[ord_listers.length-1].played;
-		var last_lister = cur_song ? cur_song.who : -1;
+		var last_lister = is_pl_song(cur_song) ? cur_song.who : -1;
 		
 		//assign slots
 		var tot_slots=0;		
@@ -1504,7 +1539,7 @@ function onLoad()
 		}
 	
 		
-		if( cur_song ){		
+		if( is_pl_song(cur_song) ){		
 			//htmls += song_item_html( cur_song, -1, "#ffff99");
 			htmls += song_item_html( cur_song, -1, song_cols[cur_song.who], "#222222" );
 			pl_tottime+=cur_song.duration;
@@ -1557,7 +1592,7 @@ function onLoad()
 	function pd_update_time()
 	{
 		var tleft = pl_totquetime;
-		if(cur_song){
+		if( is_pl_song(cur_song) ){
 			tleft += cur_song.duration-cur_song_loc;
 		}
 		
@@ -1730,14 +1765,8 @@ function onLoad()
 	{
 		var image = document.getElementById('cur_cover');
 		
-		if (song.picture.length > 0) {				
-			var picture = song.picture[0];
-			var url = URL.createObjectURL(new Blob([picture.data], {'type': 'image/' + picture.format}));				
-			set_cover_src( image, url );
-		}else{
-			no_covers_i = (no_covers_i + 1 + Math.floor(Math.random()*(no_covers_l-1))) % no_covers_l;
-			set_cover_src( image, swirl_dir+no_covers[no_covers_i] );
-		}
+		//same cover modes as radio
+		load_cover_art( cur_song, image );
 		$("#cur_song_info").text( song.artist + " - " +song.title );
 		//div.innerText = JSON.stringify(song, undefined, 2);
 		
@@ -1784,6 +1813,15 @@ function onLoad()
 	
 	// startup /////////////////////////////////////////
 	
+	//warn before losing playlist songs, queued or in history
+	if( !indev ){
+		$(window).bind('beforeunload', function(){
+			if( playlist.length>0 || played.length>0 || is_pl_song(cur_song) ){
+				return event.returnValue = "WARNING: Leaving will end and lose your playlist!";
+			}
+		});
+	}
+	
 	var curval = parseFloat(getCVal( 'gvolume', .2 ));
 	setGlobalVol(curval);
 	
@@ -1794,6 +1832,10 @@ function onLoad()
 		//then check cookie
 		if(cur_station==null){
 			cur_station = getCVal( 'cur_station', 1 );
+		}
+		//old playlist or missing station, use first
+		if( stationlist.length>0 && stationlist.filter( function(s){  return s.id==cur_station;  } ).length==0 ){
+			cur_station = stationlist[0].id;
 		}
 		
 		//switch to station
