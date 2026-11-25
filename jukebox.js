@@ -18,6 +18,7 @@ function onLoad()
 	var play_on_load = false;	//next was hit before next song loaded
 	var RETRY_MS = 3000;	//wait before retrying a failed next song
 	var MAX_LOADS = 10;	//max song files loading at once
+	var AUDIO_EXTS = [ "mp3", "m4a", "ogg", "wav", "flac" ];	//dropped files we accept
 	
 	cur_song_d=null;
 	
@@ -1018,21 +1019,146 @@ function onLoad()
 		
 		if(locked){  return;  }
 		
-		var files = evt.originalEvent.dataTransfer.files;
-		
-		if( !files || files.length<1 ){  return;  }
-		
-		//show the playlist
-		setPlOn( true );
-		
 		var who = $(this).data("dropper");
+		var dt = evt.originalEvent.dataTransfer;
 		
-		for( var fi=0;fi<files.length; fi++ ){
-			var file = files[fi];
-			//pl_add_song(file)
-			setTimeout( pl_add_song, 1, file,  who );
+		//grab entries now, they die after this handler
+		var entries = drop_entries(dt);
+		if( entries ){
+			collect_drop_files(entries, function(files){
+				add_drop_files(files, who);
+			});
+			return;
 		}
+		
+		//no entries, just the file list
+		add_drop_files( dt.files, who );
 	});
+	
+	//entries from a drop, or none if the browser has no entry api
+	function drop_entries(dt)
+	{
+		if( !dt.items || !dt.items.length || !dt.items[0].webkitGetAsEntry ){  return null;  }
+		var entries = [];
+		for( var i=0; i<dt.items.length; i++ ){
+			var entry = dt.items[i].webkitGetAsEntry();
+			if( entry ){  entries.push(entry);  }
+		}
+		return entries.length ? entries : null;
+	}
+	
+	//audio by extension, any case
+	function is_audio_name(name)
+	{
+		var dot, ext;
+		if( !name ){  return false;  }
+		dot = name.lastIndexOf(".");
+		if( dot<0 ){  return false;  }
+		ext = name.substring(dot+1).toLowerCase();
+		return AUDIO_EXTS.indexOf(ext)>-1;
+	}
+	
+	//walk a drop's entries, files in a stable order
+	function collect_drop_files(entries, doneFunc)
+	{
+		var files = [];
+		var ei = 0;
+		
+		function next_entry()
+		{
+			if( ei>=entries.length ){
+				doneFunc(files);
+				return;
+			}
+			collect_entry(entries[ei], files, function(){
+				ei++;
+				next_entry();
+			});
+		}
+		next_entry();
+	}
+	
+	function collect_entry(entry, files, doneFunc)
+	{
+		if( !entry ){
+			doneFunc();
+			return;
+		}
+		if( entry.isFile ){
+			if( !is_audio_name(entry.name) ){
+				doneFunc();
+				return;
+			}
+			entry.file( function(file){
+				files.push(file);
+				doneFunc();
+			}, function(){
+				doneFunc();
+			});
+			return;
+		}
+		if( entry.isDirectory ){
+			collect_dir(entry, files, doneFunc);
+			return;
+		}
+		doneFunc();
+	}
+	
+	function collect_dir(dirEntry, files, doneFunc)
+	{
+		var reader = dirEntry.createReader();
+		var kids = [];
+		
+		function read_batch()
+		{
+			reader.readEntries( function(batch){
+				var i;
+				if( !batch.length ){
+					//files first then folders, by name
+					kids.sort( function(a,b){
+						if( a.isFile!=b.isFile ){  return a.isFile ? -1 : 1;  }
+						return a.name.localeCompare(b.name, undefined, {numeric:true});
+					});
+					i = 0;
+					function next_kid()
+					{
+						if( i>=kids.length ){
+							doneFunc();
+							return;
+						}
+						collect_entry(kids[i], files, function(){
+							i++;
+							next_kid();
+						});
+					}
+					next_kid();
+					return;
+				}
+				for( i=0; i<batch.length; i++ ){
+					kids.push(batch[i]);
+				}
+				read_batch();
+			}, function(){
+				doneFunc();
+			});
+		}
+		read_batch();
+	}
+	
+	//queue the audio files from a drop
+	function add_drop_files(files, who)
+	{
+		if( locked || !files || !files.length ){  return;  }
+		var n = 0;
+		for( var i=0; i<files.length; i++ ){
+			if( !is_audio_name(files[i].name) ){  continue;  }
+			n++;
+			pl_add_song( files[i], who );
+		}
+		if( n>0 ){
+			setPlOn( true );
+		}
+	}
 	
 	
 	var pl_q = $("#playlist_q");
