@@ -8,6 +8,7 @@
 <script src='moment.min.js'></script>
 <script src="jsmediatags.min.js"></script>
 <script src="howler.min.js"></script>
+<script src='jukedb.js'></script>
 
 <script src='jukebox.js'></script>
 
@@ -42,6 +43,7 @@
 		</span>
 		<span id='btn_minmax' class="button no_select" style="background:#44bb55;font-size:14px;padding:5px 3px;width:20px;" >&varr;</span>
 		<span id='btn_pllist' class="button no_select" style="background:#44bb55;font-size:14px;padding:5px 3px;width:20px;" ><img src="list-64.png" style="vertical-align:middle;width:14px;"></span>
+		<span id='btn_lib' class="button no_select" style="background:#44bb55;font-size:14px;padding:5px 3px;width:20px;" >&#9835;</span>
 	</div>
 	<div style='margin:5px 0px;padding:0px;'>	
 		<div id='cur_song_title' class="songTitle" style="max-width:400px; white-space:normal;" >Click Play</div>
@@ -139,6 +141,7 @@
 		<tr><td>Queued songs play first</td><td>radio plays when the queue is empty</td></tr>
 		<tr><td>Drag mp3s onto a color box</td><td>queue songs for that player, turns the playlist on &nbsp;<span style='color:#dd9999;'>&#9632;</span><span style='color:#99cc99;'>&#9632;</span><span style='color:#9999ff;'>&#9632;</span><span style='color:#dd99ee;'>&#9632;</span></td></tr>
 		<tr><td>&nbsp; <img src="list-64.png" style="vertical-align:middle;width:16px;background:#44bb55;border-radius:3px;"></td><td>show playlist or next radio song</td></tr>
+		<tr><td>&nbsp; <span style='background:#44bb55;color:#191919;border-radius:3px;padding:0px 3px;'>&#9835;</span></td><td>open the library, click a song or drag it onto a color box</td></tr>
 		<tr class='help_sec'><td colspan='2'>Play order icons (playlist)</td></tr>
 		<tr><td>Pick a play order</td><td></td></tr>
 		<tr><td>&nbsp; <img src="list_icon.png" style="vertical-align:middle;width:16px;"></td><td>each player's songs in queue order</td></tr>

@@ -19,6 +19,7 @@ function onLoad()
 	var RETRY_MS = 3000;	//wait before retrying a failed next song
 	var MAX_LOADS = 10;	//max song files loading at once
 	var AUDIO_EXTS = [ "mp3", "m4a", "ogg", "wav", "flac" ];	//dropped files we accept
+	var LIB_WIN_OPTS = "width=900,height=800";	//library window size
 	
 	cur_song_d=null;
 	
@@ -97,6 +98,19 @@ function onLoad()
 	btn_pllist.on("mousedown", function()
 	{
 		setPlOn( !pl_on );
+	});
+	
+	//library in its own window, it adds songs back to us
+	var lib_win = null;
+	var btn_lib = $("#btn_lib");
+	btn_lib.on("mousedown", function()
+	{
+		//already open, just bring it forward
+		if( lib_win && !lib_win.closed ){
+			lib_win.focus();
+		}else{
+			lib_win = window.open( "library.html", "jb_library", LIB_WIN_OPTS );
+		}
 	});
 	
 	function setMinimized(m)
@@ -1022,6 +1036,15 @@ function onLoad()
 		var who = $(this).data("dropper");
 		var dt = evt.originalEvent.dataTransfer;
 		
+		//song dragged from the library window
+		var libpath = lib_drop_path(dt);
+		if( libpath!=null ){
+			lib_file( libpath, function(file){
+				if( file ){  jb_add_file( file, who );  }
+			});
+			return;
+		}
+		
 		//grab entries now, they die after this handler
 		var entries = drop_entries(dt);
 		if( entries ){
@@ -1158,6 +1181,56 @@ function onLoad()
 		if( n>0 ){
 			setPlOn( true );
 		}
+	}
+	
+	//library hands us a song file for a player
+	function jb_add_file( file, who )
+	{
+		if( locked || !file ){  return false;  }
+		//our own copy, so it outlives the library window
+		var f = new File( [file], file.name, { type: file.type, lastModified: file.lastModified } );
+		add_drop_files( [f], who );
+		return true;
+	}
+	window.jb_add_file = jb_add_file;
+	
+	//library path from a drop, none for files or other text
+	function lib_drop_path(dt)
+	{
+		if( typeof jdb_resolve!="function" ){  return null;  }
+		if( dt.files && dt.files.length>0 ){  return null;  }
+		var path = dt.getData( JDB_DRAG_TYPE );
+		if( path ){  return path;  }
+		var text = dt.getData( "text/plain" );
+		if( text && text.indexOf( JDB_DRAG_PREFIX )==0 ){  return text.substring( JDB_DRAG_PREFIX.length );  }
+		return null;
+	}
+	
+	//library path to a file, through the library window or the saved folder
+	function lib_file( path, doneFunc )
+	{
+		if( lib_win && !lib_win.closed && lib_win.lib_get_file ){
+			lib_win.lib_get_file( path, doneFunc );
+			return;
+		}
+		jdb_load_handle( function(handle)
+		{
+			if( !handle ){
+				console.log( "library: no music folder picked yet" );
+				doneFunc(null);
+				return;
+			}
+			//only if already allowed, a drop can't ask
+			jdb_check_perm( handle, "read", false, function(ok)
+			{
+				if( !ok ){
+					console.log( "library: music folder not allowed, open the library" );
+					doneFunc(null);
+					return;
+				}
+				jdb_resolve( handle, path, doneFunc );
+			});
+		});
 	}
 	
 	
